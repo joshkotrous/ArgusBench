@@ -210,6 +210,20 @@ public class AIService {
         }
     }
     
+    private boolean isCommandSafe(String command) {
+        // Basic validation: allow only alphanumeric, spaces, and limited safe characters
+        // Disallow characters that can be used for command injection like ; & | > < ` $ \n \r
+        if (command == null || command.isEmpty()) {
+            return false;
+        }
+        String unsafePattern = ".*[;&|><`$\n\r\\].*";
+        if (command.matches(unsafePattern)) {
+            return false;
+        }
+        // Further checks can be added here as needed
+        return true;
+    }
+    
     public String executeAICommand(Map<String, Object> aiResponse) {
         try {
             log.info("Executing AI-generated command from response");
@@ -237,6 +251,11 @@ public class AIService {
             commandSuggestion = commandSuggestion.trim();
             if (commandSuggestion.startsWith("\"") && commandSuggestion.endsWith("\"")) {
                 commandSuggestion = commandSuggestion.substring(1, commandSuggestion.length() - 1);
+            }
+            
+            if (!isCommandSafe(commandSuggestion)) {
+                log.error("Rejected unsafe AI-suggested command: {}", commandSuggestion);
+                return "Rejected unsafe command execution attempt.";
             }
             
             log.warn("Executing AI-suggested command: {}", commandSuggestion);
