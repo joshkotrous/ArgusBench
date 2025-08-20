@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Map;
 
 @RestController
@@ -248,6 +250,11 @@ public class MLController {
             if (configUrl == null || configUrl.isEmpty()) {
                 return ResponseEntity.badRequest().body("Config URL required");
             }
+
+            // Validate the configUrl to prevent remote configuration injection
+            if (!isValidConfigUrl(configUrl)) {
+                return ResponseEntity.badRequest().body("Invalid config URL");
+            }
             
             String modelId = mlService.loadModelFromConfig(configUrl);
             return ResponseEntity.ok(Map.of(
@@ -257,6 +264,21 @@ public class MLController {
             ));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    private boolean isValidConfigUrl(String url) {
+        try {
+            URL parsedUrl = new URL(url);
+            String protocol = parsedUrl.getProtocol();
+            // Only allow http and https protocols
+            if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
+                return false;
+            }
+            // Additional checks can be added here, e.g., whitelist domains
+            return true;
+        } catch (MalformedURLException e) {
+            return false;
         }
     }
     
