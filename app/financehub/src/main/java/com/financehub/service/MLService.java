@@ -717,6 +717,11 @@ public class MLService {
                 String metricFormula = metric.getValue();
                 
                 try {
+                    // Validate metricFormula to allow only safe characters (digits, operators, letters, dots, spaces, parentheses)
+                    if (!metricFormula.matches("[0-9a-zA-Z_\.\+\-\*/\(\)\s]+")) {
+                        throw new RuntimeException("Invalid characters in metric formula");
+                    }
+                    
                     ScriptEngine engine = manager.getEngineByName("javascript");
                     if (engine == null) {
                         engine = manager.getEngineByName("nashorn");
