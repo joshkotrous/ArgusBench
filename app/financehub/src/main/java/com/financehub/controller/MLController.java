@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Map;
 
 @RestController
@@ -268,11 +270,42 @@ public class MLController {
             if (packageUrl == null || packageUrl.isEmpty()) {
                 return ResponseEntity.badRequest().body("Package URL required");
             }
+
+            // Validate the packageUrl to prevent supply chain attacks
+            if (!isValidPackageUrl(packageUrl)) {
+                return ResponseEntity.badRequest().body("Invalid package URL");
+            }
             
             Map<String, Object> result = mlService.importModelPackage(packageUrl);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private boolean isValidPackageUrl(String url) {
+        try {
+            URL parsedUrl = new URL(url);
+            String protocol = parsedUrl.getProtocol();
+            if (!"https".equalsIgnoreCase(protocol)) {
+                log.warn("Rejected package URL with unsupported protocol: {}", protocol);
+                return false;
+            }
+            String host = parsedUrl.getHost();
+            if (host == null || host.isEmpty()) {
+                log.warn("Rejected package URL with empty host");
+                return false;
+            }
+            // Optionally, restrict to specific trusted domains
+            // For example, only allow URLs from financehub.com domain
+            if (!host.endsWith("financehub.com")) {
+                log.warn("Rejected package URL from untrusted domain: {}", host);
+                return false;
+            }
+            return true;
+        } catch (MalformedURLException e) {
+            log.warn("Rejected package URL due to malformed URL: {}", url);
+            return false;
         }
     }
     
