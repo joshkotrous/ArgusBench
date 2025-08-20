@@ -64,6 +64,7 @@ public class AdminController {
   }
 
   @PostMapping("/users/{id}/role")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<UserResponse> updateUserRole(
       @org.springframework.web.bind.annotation.PathVariable("id") String userId,
       @Valid @RequestBody UserRoleUpdateRequest req) {
@@ -119,5 +120,3 @@ public class AdminController {
     return ResponseEntity.ok(java.util.Map.of("message", "Expired approvals cleared"));
   }
 }
-
-
