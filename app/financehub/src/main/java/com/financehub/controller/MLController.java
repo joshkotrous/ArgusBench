@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Map;
 
 @RestController
@@ -227,6 +229,10 @@ public class MLController {
             
             if (modelUrl == null || modelUrl.isEmpty()) {
                 return ResponseEntity.badRequest().body("Model URL required");
+            }
+            
+            if (!isValidUrl(modelUrl)) {
+                return ResponseEntity.badRequest().body("Invalid or untrusted model URL");
             }
             
             String modelId = mlService.loadModelFromUrl(modelUrl, modelName, version);
@@ -534,6 +540,22 @@ public class MLController {
             ));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private boolean isValidUrl(String url) {
+        try {
+            URL parsedUrl = new URL(url);
+            // Only allow https scheme for security
+            if (!"https".equalsIgnoreCase(parsedUrl.getProtocol())) {
+                log.warn("Rejected URL with non-https protocol: {}", url);
+                return false;
+            }
+            // Additional checks can be added here, e.g., host whitelist
+            return true;
+        } catch (MalformedURLException e) {
+            log.warn("Malformed URL rejected: {}", url);
+            return false;
         }
     }
 }
