@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Map;
 
 @RestController
@@ -34,7 +36,7 @@ public class WebhookController {
                 "response", response
             ));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
     
@@ -51,7 +53,7 @@ public class WebhookController {
             String result = webhookService.validateWebhookEndpoint(webhookUrl);
             return ResponseEntity.ok(Map.of("result", result));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
     
@@ -66,7 +68,7 @@ public class WebhookController {
             String config = webhookService.fetchWebhookConfig(configUrl);
             return ResponseEntity.ok(Map.of("config", config));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
     
@@ -81,6 +83,29 @@ public class WebhookController {
         if (targetUrl == null || targetUrl.isEmpty()) {
             return ResponseEntity.badRequest().body("Target URL required");
         }
+
+        // Validate URL format and prevent SSRF by restricting to allowed protocols and disallowing local/internal IPs
+        try {
+            URI uri = new URI(targetUrl);
+            String scheme = uri.getScheme();
+            if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+                return ResponseEntity.badRequest().body("Invalid URL scheme");
+            }
+
+            String host = uri.getHost();
+            if (host == null || host.isEmpty()) {
+                return ResponseEntity.badRequest().body("Invalid URL host");
+            }
+
+            // Basic SSRF protection: disallow localhost and private IP ranges
+            if (host.equalsIgnoreCase("localhost") || host.equals("127.0.0.1") || host.equals("::1") ||
+                host.endsWith(".local") || host.matches("^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.).*")) {
+                return ResponseEntity.badRequest().body("Access to local or private network addresses is not allowed");
+            }
+
+        } catch (URISyntaxException e) {
+            return ResponseEntity.badRequest().body("Malformed target URL");
+        }
         
         if (method == null || method.isEmpty()) {
             method = "GET";
@@ -90,7 +115,8 @@ public class WebhookController {
             String response = webhookService.proxyRequest(targetUrl, method, headers, body);
             return ResponseEntity.ok(Map.of("response", response));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            // Avoid exposing internal exception messages to client
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
     
@@ -118,7 +144,7 @@ public class WebhookController {
                 "response", response
             ));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
 }
