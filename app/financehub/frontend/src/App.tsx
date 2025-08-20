@@ -9,6 +9,8 @@ import Admin from './pages/Admin'
 
 export default function App() {
   const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', padding: 16 }}>
       <header style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
@@ -25,10 +27,8 @@ export default function App() {
         <Route path="/accounts" element={user ? <Accounts /> : <Navigate to="/login" replace />} />
         <Route path="/transactions" element={user ? <Transactions /> : <Navigate to="/login" replace />} />
         <Route path="/reports" element={user ? <Reports /> : <Navigate to="/login" replace />} />
-        <Route path="/admin" element={user ? <Admin /> : <Navigate to="/login" replace />} />
+        <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/login" replace />} />
       </Routes>
     </div>
   )
 }
-
-
