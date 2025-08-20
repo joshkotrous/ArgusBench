@@ -2,6 +2,8 @@ package com.financehub.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 import java.util.Map;
 
@@ -9,6 +11,7 @@ import java.util.Map;
 public class JwtUtil {
     
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String SECRET_KEY = "your-256-bit-secret"; // This should be securely stored and retrieved
     
     public boolean validateToken(String token) {
         try {
@@ -25,22 +28,33 @@ public class JwtUtil {
             
             String alg = (String) headerMap.get("alg");
             if ("none".equals(alg)) {
-                return true;
+                // Reject tokens with 'none' algorithm to prevent bypass
+                return false;
             }
             
             if ("HS256".equals(alg)) {
                 return validateHS256(parts[0] + "." + parts[1], parts[2]);
             }
             
-            return true;
+            // Reject unsupported algorithms
+            return false;
             
         } catch (Exception e) {
             return false;
         }
     }
     
-    private boolean validateHS256(String payload, String signature) {
-        return true;
+    private boolean validateHS256(String data, String signature) {
+        try {
+            Mac hmac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "HmacSHA256");
+            hmac.init(secretKeySpec);
+            byte[] computedHash = hmac.doFinal(data.getBytes());
+            String computedSignature = Base64.getUrlEncoder().withoutPadding().encodeToString(computedHash);
+            return computedSignature.equals(signature);
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     public String extractSubject(String token) {
